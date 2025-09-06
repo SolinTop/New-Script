@@ -1,236 +1,242 @@
-local HttpService = game:GetService("HttpService")
+-- SERVICES
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local TeleportService = game:GetService("TeleportService")
+local player = Players.LocalPlayer
 
--- Your Firebase Realtime Database URL (replace with your own!)
-local FirebaseURL = "https://your-firebase-project.firebaseio.com/usersCount.json"
+-- ReGui
+local ReGui = loadstring(game:HttpGet("https://raw.githubusercontent.com/depthso/Dear-ReGui/refs/heads/main/ReGui.lua"))()
+local PrefabsId = "rbxassetid://71968920594655"
 
-local function getUserCount()
-    local success, response = pcall(function()
-        return HttpService:GetAsync(FirebaseURL)
-    end)
-    if success then
-        local count = tonumber(response)
-        return count or 0
-    else
-        return 0
+ReGui:Init({
+	Prefabs = game:GetService("InsertService"):LoadLocalAsset(PrefabsId)
+})
+
+local Window = ReGui:TabsWindow({
+	Title = "Solin Hub ⚡",
+	Size = UDim2.new(0, 400, 0, 400),
+}):Center()
+
+-- REMOTES
+local attackRemote = ReplicatedStorage:WaitForChild("jdskhfsIIIllliiIIIdchgdIiIIIlIlIli")
+local skillsRemote = ReplicatedStorage:WaitForChild("SkillsInRS"):WaitForChild("RemoteEvent")
+
+-- FOLDERS
+local map = Workspace:WaitForChild("MAP")
+local dummiesFolder = map:WaitForChild("dummies")
+local folder5k = map:FindFirstChild("5k_dummies")
+local bossesList = { "ROCKY","Griffin","BOOSBEAR","BOSSDEER","CENTAUR","CRABBOSS","DragonGiraffe","LavaGorilla" }
+
+-- FLAGS
+local AF = { coins=false, bosses=false, dummies=false, dummies5k=false, tpDummy=false, tpDummy5k=false }
+local PVP = { killAura=false }
+
+-- UTILS
+local function getCharacter()
+    local c = player.Character or player.CharacterAdded:Wait()
+    return c, c:WaitForChild("Humanoid"), c:WaitForChild("HumanoidRootPart")
+end
+
+local function getAliveHumanoid(model)
+    local hum = model and model:FindFirstChildOfClass("Humanoid")
+    if hum and hum.Health > 0 then return hum end
+end
+
+local function findDummy(folder)
+    for _, d in ipairs(folder:GetChildren()) do
+        local hum = getAliveHumanoid(d)
+        if hum then return d, hum end
     end
 end
 
-local function incrementUserCount()
-    local currentCount = getUserCount()
-    local newCount = currentCount + 1
-    pcall(function()
-        HttpService:PutAsync(FirebaseURL, tostring(newCount))
-    end)
-    return newCount
+-- AUTO FARM FUNCTIONS
+local function autoCoins()
+    while AF.coins do
+        local events = ReplicatedStorage:FindFirstChild("Events")
+        local coinEvent = events and events:FindFirstChild("CoinEvent")
+        if coinEvent then coinEvent:FireServer() end
+        task.wait(1)
+    end
 end
 
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local function attackLoop(flag, folder)
+    while AF[flag] do
+        local dummy, hum = findDummy(folder)
+        if dummy and hum and dummy:FindFirstChild("HumanoidRootPart") then
+            local pos = dummy.HumanoidRootPart.Position
+            attackRemote:FireServer(hum, 2)
+            skillsRemote:FireServer(pos, "NewFireball")
+            skillsRemote:FireServer(pos, "NewLightningball")
+        end
+        task.wait(0.05)
+    end
+end
 
-local Window = Rayfield:CreateWindow({
-    Name = "Solin Hub 👑",
-    LoadingTitle = "Script Hub",
-    LoadingSubtitle = "By: Solin",
-    ConfigurationSaving = {
-        Enabled = true,
-        FolderName = "SolinHubConfig",
-        FileName = "MainConfig"
-    },
-    Discord = {
-        Enabled = true,
-        Invite = "YAgqvFAC6E",
-        RememberJoins = true
-    },
-    KeySystem = true,
-    KeySettings = {
-        Title = "Solin Hub | Key System 🔑",
-        Subtitle = "Enter the key to continue",
-        Note = "Get the key from our Discord.gg/n7AucXH96x",
-        FileName = "SolinHubKey",
-        SaveKey = true,
-        GrabKeyFromSite = false,
-        Key = {"FreeAccess57"}
-    }
+local function farmBosses()
+    while AF.bosses do
+        local npcFolder = Workspace:FindFirstChild("NPC")
+        if npcFolder then
+            for _, name in ipairs(bossesList) do
+                local boss = npcFolder:FindFirstChild(name)
+                local hum = getAliveHumanoid(boss)
+                if hum then attackRemote:FireServer(hum, 5) end
+            end
+        end
+        task.wait(1)
+    end
+end
+
+-- PVP FUNCTIONS
+local function killAuraLoop()
+    while PVP.killAura do
+        local _, _, hrp = getCharacter()
+        local closest = nil
+        local shortest = math.huge
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local dist = (p.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+                if dist < shortest then
+                    shortest = dist
+                    closest = p
+                end
+            end
+        end
+        if closest then
+            attackRemote:FireServer(closest.Character:FindFirstChildOfClass("Humanoid"), 1)
+        end
+        task.wait(0.1)
+    end
+end
+
+-- FIREBALL TOOL
+local function giveFireball()
+    local tool = Instance.new("Tool")
+    tool.Name = "Fireball"
+    tool.RequiresHandle = false
+    tool.CanBeDropped = false
+    tool.ManualActivationOnly = false
+    tool.Parent = player:FindFirstChildOfClass("Backpack") or player.Backpack
+
+    local mouse = player:GetMouse()
+    local function shoot()
+        if tool and skillsRemote then
+            local pos = mouse.Hit.Position
+            skillsRemote:FireServer(pos, "NewFireball")
+        end
+    end
+
+    tool.Activated:Connect(shoot)
+    game:GetService("UserInputService").InputBegan:Connect(function(input, gp)
+        if gp then return end
+        if input.UserInputType == Enum.UserInputType.Touch then
+            shoot()
+        end
+    end)
+end
+
+giveFireball()
+player.CharacterAdded:Connect(function()
+    task.wait(1)
+    giveFireball()
+end)
+
+-- UI: FARM
+local FarmTab = Window:CreateTab({
+    Name = "Farm"
 })
 
--- Increment user count and get updated total
-local totalUsers = incrementUserCount()
-
--- TAB: Read Me 📜
-local TabReadMe = Window:CreateTab("Read Me 📜", 6034509995)
-local SectionRead = TabReadMe:CreateSection("Credits")
-TabReadMe:CreateLabel("Hub Created by: Solin")
-TabReadMe:CreateLabel("Discord: discord.gg/YAgqvFAC6E")
-TabReadMe:CreateLabel("Thanks for using my hub ❤️")
-TabReadMe:CreateLabel("Users who opened this hub: " .. totalUsers)
-
--- TAB 1: Animal Simulator Scripts 🐾
-local TabAnimal = Window:CreateTab("Game Animal Simulator 🐾", 6034287594)
-TabAnimal:CreateButton({
-    Name = "Mantis Animal 🕷️",
-    Callback = function()
-        loadstring(game:HttpGet("https://rawscripts.net/raw/MantisAnimal-Simulator-Toba-Hub-38777"))()
-    end
-})
-TabAnimal:CreateButton({
-    Name = "Bmacaveli New Hub 🔥",
-    Callback = function()
-        loadstring(game:HttpGet("https://bmacaveli.link/newhub"))()
-    end
-})
-TabAnimal:CreateButton({
-    Name = "Owl Script 🦉",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/vgfB9i7jmn97pj879t7h/-8yj9-k7--jpu-0p-p9Y-0-l-0ik--9U-N8y-Q2r/refs/heads/main/h0r769bgre59eg59ge59"))()
-    end
-})
-TabAnimal:CreateButton({
-    Name = "LT fruit Script 👑",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/mkkkkkkkkkkak/LT-ANIMAL-SIMULATOR-OFC/refs/heads/main/V5.5"))()
-    end
-})  
-
--- TAB 2: Other Games 🎮
-local TabGames = Window:CreateTab("Other Games 🎮", 6034509993)
-TabGames:CreateButton({
-    Name = "99 Nights in the Forest 🌲",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/m00ndiety/Moondiety/refs/heads/main/Loader"))()
-    end
-})
-TabGames:CreateButton({
-    Name = "Steal a Brain OP 🧠",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/SolinTop/Steal-A-Brain-OP/refs/heads/main/Steal%20a%20brainrot"))()
-    end
-})
-TabGames:CreateButton({
-    Name = "MM2 🔪",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/Vax3478/Vax/refs/heads/main/mm2scripthubkeyless"))()
-    end
-})
-TabGames:CreateButton({
-    Name = "Legends of Speed ⚡",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/TrixAde/Proxima-Hub/main/Main.lua"))()
-    end
-})
-TabGames:CreateButton({
-    Name = "Pls Donate Auto Beg 🙏",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/Azura83/PLZ-Donate/refs/heads/main/AzuraHub.lua"))()
-    end
-})
-TabGames:CreateButton({
-    Name = "Rivals Script & Arsenal (Unpatched) 🔫",
-    Callback = function()
-        loadstring(game:HttpGet("https://soluna-script.vercel.app/main.lua",true))()
-    end
-})
-TabGames:CreateButton({
-    Name = "Blade Ball 🏀",
-    Callback = function()
-        loadstring(game:HttpGet('https://pastebin.com/raw/idKUExya'))()
-    end
-})
-TabGames:CreateButton({
-    Name = "Bed Wars 🛏️",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/warprbx/NightRewrite/refs/heads/main/Night/Loader.luau"))()
-    end
-})
-TabGames:CreateButton({
-    Name = "DeadRails 🚂",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/gumanba/Scripts/refs/heads/main/DeadRails", true))()
-    end
-})
-TabGames:CreateButton({
-    Name = "Ninja Legends 🥷",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/Zepsyy2/asd/main/Ninja%20Legends.lua"))()
-    end
-})
-TabGames:CreateButton({
-    Name = "Brookhaven OP 🏙️",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/kigredns/testUIDK/refs/heads/main/panel.lua"))()
-    end
-})
-TabGames:CreateButton({
-    Name = "Da Hood 🔫",
-    Callback = function()
-        loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-FE-Dearsister-Pistol-Hat-Script-UNIVERSAL-DA-HOOD-SUPPORT-19428"))()
-    end
-})
-TabGames:CreateButton({
-    Name = "Grow A Garden Test 🌱",
-    Callback = function()
-        loadstring(game:HttpGet("https://rawscripts.net/raw/Grow-a-Garden-Blackhub-Infinite-Sheckles-41369"))()
-    end
-})
-TabGames:CreateButton({
-    Name = "Attack Zombie OP 🧟",
-    Callback = function()
-        loadstring(game:HttpGet("https://scriptblox.com/raw/Universal-Script-Desynced-43753"))()
-    end
-})
-TabGames:CreateButton({
-    Name = "Forsaken ⚔️",
-    Callback = function()
-        loadstring(game:HttpGet("https://rawscripts.net/raw/NOLI-Forsaken-Forsaken-script-47704"))()
-    end
-})
-TabGames:CreateButton({
-    Name = "Demon Fall 😈",
-    Callback = function()
-        loadstring(game:HttpGet("https://rawscripts.net/raw/Demonfall-DUPE-Solixhub-OP-Auto-Farms-Solara-Supported-25087"))()
-    end
-})
-TabGames:CreateButton({
-    Name = "Blue Lock Rivals ⚽",
-    Callback = function()
-        loadstring(game:HttpGet("https://rawscripts.net/raw/2-HRS-Blue-Lock:-Rivals-CRISTIANO-RONALDO-MOVESET-42974"))()
-    end
-})
-TabGames:CreateButton({
-    Name = "South Bronx The Trenches 🏙️",
-    Callback = function()
-        loadstring(game:HttpGet("https://rawscripts.net/raw/South-Bronx:-The-Trenches-Best-FREE-Bronx-Script-Undetected-46496"))()
+FarmTab:Checkbox({
+    Value = false,
+    Label = "Auto Coins 💰",
+    Callback = function(self, Value)
+        AF.coins = Value
+        if Value then
+            task.spawn(autoCoins)
+        end
     end
 })
 
--- TAB 3: Utilities 🛠️
-local TabUtils = Window:CreateTab("Utilities 🛠️", 6034509990)
-TabUtils:CreateButton({
-    Name = "Infinite Yield 📜",
-    Callback = function()
-        loadstring(game:HttpGet('https://raw.githubusercontent.com/DarkNetworks/Infinite-Yield/main/latest.lua'))()
-    end
-})
-TabUtils:CreateButton({
-    Name = "Chat Spy (Exclusive Version) 🕵️‍♂️",
-    Callback = function()
-        loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
-    end
-})
-TabUtils:CreateButton({
-    Name = "Wall Hop 🦘",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/ScpGuest666/Random-Roblox-script/refs/heads/main/Roblox%20WallHop%20V4%20script"))()
+FarmTab:Checkbox({
+    Value = false,
+    Label = "Auto Dummy 🔥",
+    Callback = function(self, Value)
+        AF.dummies = Value
+        if Value then
+            task.spawn(function()
+                attackLoop("dummies", dummiesFolder)
+            end)
+        end
     end
 })
 
--- TAB 4: Soon ❗
-local TabIDK = Window:CreateTab("Soon ❗", 6034509992)
-TabIDK:CreateButton({
-    Name = "Mystery Script ❓",
-    Callback = function()
-        Rayfield:Notify({
-            Title = "Coming Soon",
-            Content = "This section will have random scripts!",
-            Duration = 5
-        })
+FarmTab:Checkbox({
+    Value = false,
+    Label = "Auto Dummy 5k 🔥",
+    Callback = function(self, Value)
+        AF.dummies5k = Value
+        if Value then
+            task.spawn(function()
+                attackLoop("dummies5k", folder5k)
+            end)
+        end
     end
 })
+
+FarmTab:Checkbox({
+    Value = false,
+    Label = "Auto Bosses 🐉",
+    Callback = function(self, Value)
+        AF.bosses = Value
+        if Value then
+            task.spawn(farmBosses)
+        end
+    end
+})
+
+FarmTab:Checkbox({
+    Value = false,
+    Label = "TP to Dummy 📍",
+    Callback = function(self, Value)
+        AF.tpDummy = Value
+    end
+})
+
+FarmTab:Checkbox({
+    Value = false,
+    Label = "TP to Dummy 5k 📍",
+    Callback = function(self, Value)
+        AF.tpDummy5k = Value
+    end
+})
+
+-- UI: PVP
+local PvPTab = Window:CreateTab({
+	Name = "PvP"
+})
+
+PvPTab:Checkbox({
+    Value = false,
+    Label = "Kill Aura ✔️",
+    Callback = function(self, Value)
+        PVP.killAura = Value
+        if Value then
+            task.spawn(killAuraLoop)
+        end
+    end
+})
+
+-- SAFE CHECK & UNIFIED TP
+RunService.RenderStepped:Connect(function()
+    local _, _, hrp = getCharacter()
+    local targetDummy
+    if AF.tpDummy5k and folder5k then
+        targetDummy = findDummy(folder5k)
+    elseif AF.tpDummy then
+        targetDummy = findDummy(dummiesFolder)
+    end
+    if targetDummy and targetDummy[1]:FindFirstChild("HumanoidRootPart") then
+        hrp.CFrame = targetDummy[1].HumanoidRootPart.CFrame + Vector3.new(0,0,4)
+    end
+end)
