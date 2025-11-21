@@ -15,6 +15,23 @@ local function getUserCount()
     end
 end
 
+local TabReadMe = Window:CreateTab("Read Me 📜", 6034509995)
+
+TabReadMe:CreateLabel("Hub Created by: Solin")
+TabReadMe:CreateLabel("Thanks for using my hub ❤️")
+
+TabReadMe:CreateButton({
+    Name = "Copy Discord Link 📋",
+    Callback = function()
+        setclipboard("https://discord.gg/97mkbSWwmQ")
+        Rayfield:Notify({
+            Title = "Copied!",
+            Content = "Discord link copied to clipboard ✔️",
+            Duration = 5
+        })
+    end
+})
+
 local function incrementUserCount()
     local currentCount = getUserCount()
     local newCount = currentCount + 1
@@ -37,14 +54,14 @@ local Window = Rayfield:CreateWindow({
     },
     Discord = {
         Enabled = true,
-        Invite = "YAgqvFAC6E",
+        Invite = "97mkbSWwmQ",
         RememberJoins = true
     },
     KeySystem = true,
     KeySettings = {
         Title = "Solin Hub | Key System 🔑",
         Subtitle = "Enter the key to continue",
-        Note = "Get the key from our Discord.gg/n7AucXH96x",
+        Note = "Get the key from our https://discord.gg/97mkbSWwmQ",
         FileName = "SolinHubKey",
         SaveKey = true,
         GrabKeyFromSite = false,
@@ -62,33 +79,6 @@ TabReadMe:CreateLabel("Hub Created by: Solin")
 TabReadMe:CreateLabel("Discord: discord.gg/YAgqvFAC6E")
 TabReadMe:CreateLabel("Thanks for using my hub ❤️")
 TabReadMe:CreateLabel("Users who opened this hub: " .. totalUsers)
-
--- TAB 1: Animal Simulator Scripts 🐾
-local TabAnimal = Window:CreateTab("Game Animal Simulator 🐾", 6034287594)
-TabAnimal:CreateButton({
-    Name = "Mantis Animal 🕷️",
-    Callback = function()
-        loadstring(game:HttpGet("https://rawscripts.net/raw/MantisAnimal-Simulator-Toba-Hub-38777"))()
-    end
-})
-TabAnimal:CreateButton({
-    Name = "Bmacaveli New Hub 🔥",
-    Callback = function()
-        loadstring(game:HttpGet("https://bmacaveli.link/newhub"))()
-    end
-})
-TabAnimal:CreateButton({
-    Name = "Owl Script 🦉",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/vgfB9i7jmn97pj879t7h/-8yj9-k7--jpu-0p-p9Y-0-l-0ik--9U-N8y-Q2r/refs/heads/main/h0r769bgre59eg59ge59"))()
-    end
-})
-TabAnimal:CreateButton({
-    Name = "LT fruit Script 👑",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/mkkkkkkkkkkak/LT-ANIMAL-SIMULATOR-OFC/refs/heads/main/V5.5"))()
-    end
-})  
 
 -- TAB 2: Other Games 🎮
 local TabGames = Window:CreateTab("Other Games 🎮", 6034509993)
